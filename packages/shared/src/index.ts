@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 export const issueKeySchema = z.string().trim().regex(/^[A-Z][A-Z0-9_]{1,19}-\d+$/i, 'Enter a Jira issue key such as CBCC-1737').transform((value) => value.toUpperCase());
 export const personSchema = z.object({ displayName: z.string().nullable(), accountId: z.string().nullable() });
@@ -12,7 +12,7 @@ export const issueSchema = z.object({
 });
 export const analysisSchema = z.object({
   briefing: z.object({
-    goal: z.string(), background: z.array(z.string()), scope: z.array(z.string()), requirements: z.array(z.string()),
+    goal: z.string(), developerFocus: z.array(z.string()).default([]), background: z.array(z.string()), scope: z.array(z.string()), requirements: z.array(z.string()),
     exclusions: z.array(z.string()), openQuestions: z.array(z.string()), acceptanceCriteria: z.array(z.string())
   }),
   plan: z.object({
