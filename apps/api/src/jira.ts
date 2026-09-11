@@ -1,4 +1,4 @@
-﻿import { issueKeySchema, issueSchema, type Issue } from '@jira-copilot/shared';
+import { issueKeySchema, issueSchema, type Issue } from '@jira-copilot/shared';
 import { config } from './config.js';
 
 export class AppError extends Error { constructor(public statusCode: number, message: string) { super(message); } }
@@ -21,9 +21,9 @@ export class JiraClient {
     return normalizeIssue(await response.json());
   }
 
-  async getAssignedIssues(status?: string) {
+  async getAssignedIssues(filters: { status?: string; project?: string; priority?: string; label?: string; updatedDays?: number } = {}) {
     if (!config.jiraBaseUrl || !config.jiraPat) throw new AppError(503, 'Jira is not configured on the local server.');
-    const jql = 'assignee = currentUser()' + (status ? ' AND status = ' + JSON.stringify(status) : '') + ' ORDER BY updated DESC';
+    const terms = ['assignee = currentUser()']; if (filters.status) terms.push('status = ' + JSON.stringify(filters.status)); if (filters.project) terms.push('project = ' + JSON.stringify(filters.project)); if (filters.priority) terms.push('priority = ' + JSON.stringify(filters.priority)); if (filters.label) terms.push('labels = ' + JSON.stringify(filters.label)); if (filters.updatedDays) terms.push('updated >= -' + filters.updatedDays + 'd'); const jql = terms.join(' AND ') + ' ORDER BY updated DESC';
     const params = new URLSearchParams({ jql, fields: 'summary,issuetype,status,priority,assignee,updated', maxResults: '50' });
     let response: Response; try { response = await fetch(`${config.jiraBaseUrl}/rest/api/2/search?${params}`, { headers: { Authorization: `Bearer ${config.jiraPat}`, Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) }); } catch { throw new AppError(504, 'Jira did not respond in time.'); }
     if (!response.ok) { const messages: Record<number,string> = { 401: 'Jira authentication failed.', 403: 'You do not have permission to search assigned issues.', 429: 'Jira rate limit reached. Try again shortly.' }; throw new AppError(response.status, messages[response.status] ?? 'Jira could not retrieve assigned issues.'); }

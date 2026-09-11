@@ -51,3 +51,13 @@ Optional terminal CLI overrides: GEMINI_CLI_PATH, CODEX_CLI_PATH, and CLAUDE_CLI
 ## Verification
 
 Use Test connection to check Jira access and provider readiness. Run npm test and npm run build.
+## Team onboarding
+
+After cloning, each developer runs `npm install`, then `npm run doctor`, and starts the app with `npm run dev` or `start-jira-copilot.cmd` on Windows. The first-run wizard collects that developer's Jira URL, PAT, and selected AI provider locally. `.env` is ignored by Git; never commit it.
+
+## Developer workflow
+
+- Use the expanded ticket filters to narrow assigned issues by status, project, label, priority, or recent updates. Save useful views in the browser.
+- Generate a briefing and plan, then download its Markdown or keep feedback locally for a stronger next run.
+- In **Start implementation**, enter an existing local Git repository path and confirm the action. The app creates and switches to `feature/<issue-key>-implementation`; it does not change Jira or generate code automatically.
+- Before sending ticket context to an AI provider, the app warns when the description appears to contain a password, token, secret, or API key assignment. Review the prompt preview and remove sensitive context when appropriate.
