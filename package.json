@@ -1,0 +1,11 @@
+{
+  "name": "jira-implementation-copilot",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @jira-copilot/api\" \"npm run dev -w @jira-copilot/web\"",
+    "build": "npm run build -w @jira-copilot/web && npm run build -w @jira-copilot/api",
+    "test": "npm run test -ws --if-present"
+  },
+  "devDependencies": { "concurrently": "^9.1.2", "typescript": "^5.7.3" }
+}

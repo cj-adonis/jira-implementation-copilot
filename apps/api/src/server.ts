@@ -1,0 +1,13 @@
+﻿import Fastify from 'fastify'; import cors from '@fastify/cors'; import { z } from 'zod'; import { issueKeySchema } from '@jira-copilot/shared'; import { readiness, config, saveSettings } from './config.js'; import { AppError, JiraClient } from './jira.js'; import { AnalysisService, buildPrompt, defaultContext } from './analysis.js';
+const app = Fastify({ logger: false }); await app.register(cors, { origin: true }); const jira = new JiraClient(); const analysis = new AnalysisService();
+app.setErrorHandler((error, _request, reply) => { const isValidationError = error instanceof Error && error.name === 'ZodError'; const status = error instanceof AppError ? error.statusCode : isValidationError ? 400 : 500; reply.status(status).send({ error: error instanceof AppError ? error.message : isValidationError ? 'Invalid settings or Jira issue key.' : 'Unexpected local server error.' }); });
+app.get('/api/health', async () => readiness());
+app.post('/api/connection/test', async () => { await jira.getAssignedIssues(); const state = readiness(); if (!state.ai) throw new AppError(503, 'The selected AI provider is not ready.'); return { jira: true, ai: true, provider: state.provider, model: state.model }; });
+const settingsSchema = z.object({ jiraBaseUrl: z.string().optional(), jiraPat: z.string().optional(), provider: z.enum(['openai', 'gemini', 'gemini_cli', 'codex_cli', 'claude_cli']), openaiKey: z.string().optional(), openaiModel: z.string().max(100).optional(), geminiKey: z.string().optional(), geminiModel: z.string().max(100).optional() });
+app.post('/api/settings', async (request) => saveSettings(settingsSchema.parse(request.body)));
+const contextSchema = z.object({ description: z.boolean().default(true), comments: z.boolean().default(true), linkedIssues: z.boolean().default(true) }).default(defaultContext);
+app.get('/api/issues/assigned', async () => ({ issues: await jira.getAssignedIssues() }));
+app.get('/api/issues/:issueKey', async (request) => jira.getIssue(issueKeySchema.parse((request.params as any).issueKey)));
+app.post('/api/issues/:issueKey/prompt', async (request) => { const key = issueKeySchema.parse((request.params as any).issueKey); const issue = await jira.getIssue(key); return { prompt: buildPrompt(issue, contextSchema.parse(request.body)) }; });
+app.post('/api/issues/:issueKey/analysis', async (request) => { const key = issueKeySchema.parse((request.params as any).issueKey); const issue = await jira.getIssue(key); return { issue, analysis: await analysis.analyze(issue, contextSchema.parse(request.body)) }; });
+app.listen({ port: config.port, host: '127.0.0.1' });
