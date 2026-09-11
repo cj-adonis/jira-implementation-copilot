@@ -21,9 +21,10 @@ export class JiraClient {
     return normalizeIssue(await response.json());
   }
 
-  async getAssignedIssues() {
+  async getAssignedIssues(status?: string) {
     if (!config.jiraBaseUrl || !config.jiraPat) throw new AppError(503, 'Jira is not configured on the local server.');
-    const params = new URLSearchParams({ jql: 'assignee = currentUser() ORDER BY updated DESC', fields: 'summary,issuetype,status,priority,assignee,updated', maxResults: '50' });
+    const jql = 'assignee = currentUser()' + (status ? ' AND status = ' + JSON.stringify(status) : '') + ' ORDER BY updated DESC';
+    const params = new URLSearchParams({ jql, fields: 'summary,issuetype,status,priority,assignee,updated', maxResults: '50' });
     let response: Response; try { response = await fetch(`${config.jiraBaseUrl}/rest/api/2/search?${params}`, { headers: { Authorization: `Bearer ${config.jiraPat}`, Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) }); } catch { throw new AppError(504, 'Jira did not respond in time.'); }
     if (!response.ok) { const messages: Record<number,string> = { 401: 'Jira authentication failed.', 403: 'You do not have permission to search assigned issues.', 429: 'Jira rate limit reached. Try again shortly.' }; throw new AppError(response.status, messages[response.status] ?? 'Jira could not retrieve assigned issues.'); }
     const data = await response.json(); return (data.issues ?? []).map((issue: any) => ({ key: issue.key, summary: issue.fields?.summary ?? '', issueType: issue.fields?.issuetype?.name ?? null, status: issue.fields?.status?.name ?? null, priority: issue.fields?.priority?.name ?? null, updated: issue.fields?.updated ?? null }));

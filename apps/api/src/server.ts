@@ -6,7 +6,8 @@ app.post('/api/connection/test', async () => { await jira.getAssignedIssues(); c
 const settingsSchema = z.object({ jiraBaseUrl: z.string().optional(), jiraPat: z.string().optional(), provider: z.enum(['openai', 'gemini', 'gemini_cli', 'codex_cli', 'claude_cli']), openaiKey: z.string().optional(), openaiModel: z.string().max(100).optional(), geminiKey: z.string().optional(), geminiModel: z.string().max(100).optional() });
 app.post('/api/settings', async (request) => saveSettings(settingsSchema.parse(request.body)));
 const contextSchema = z.object({ description: z.boolean().default(true), comments: z.boolean().default(true), linkedIssues: z.boolean().default(true) }).default(defaultContext);
-app.get('/api/issues/assigned', async () => ({ issues: await jira.getAssignedIssues() }));
+const assignedQuerySchema = z.object({ status: z.string().regex(/^[A-Za-z0-9 ._-]{1,80}$/).optional() });
+app.get('/api/issues/assigned', async (request) => { const query = assignedQuerySchema.parse(request.query); return { issues: await jira.getAssignedIssues(query.status) }; });
 app.get('/api/issues/:issueKey', async (request) => jira.getIssue(issueKeySchema.parse((request.params as any).issueKey)));
 app.post('/api/issues/:issueKey/prompt', async (request) => { const key = issueKeySchema.parse((request.params as any).issueKey); const issue = await jira.getIssue(key); return { prompt: buildPrompt(issue, contextSchema.parse(request.body)) }; });
 app.post('/api/issues/:issueKey/analysis', async (request) => { const key = issueKeySchema.parse((request.params as any).issueKey); const issue = await jira.getIssue(key); return { issue, analysis: await analysis.analyze(issue, contextSchema.parse(request.body)) }; });
