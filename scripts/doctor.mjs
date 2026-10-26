@@ -1,14 +1,23 @@
-﻿import { access } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { access } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const root = process.cwd();
+const { default: dotenv } = await import('dotenv');
+dotenv.config({ path: resolve(root, '.env') });
+const run = promisify(execFile);
+const installed = path => access(path).then(() => true).catch(() => false);
+const skillFolders = process.env.MANAGING_JIRA_SKILL_PATH ? [process.env.MANAGING_JIRA_SKILL_PATH] : [join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.agents', 'skills', 'managing-jira'), join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex', 'skills', 'managing-jira')].filter(Boolean);
+const skill = (await Promise.all(skillFolders.map(async folder => ({ folder, ok: await installed(join(folder, 'scripts', 'atlassian.py')) })))).find(x => x.ok);
+const python = process.env.MANAGING_JIRA_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
+let pyVersion = '';
+try { const { stdout, stderr } = await run(python, [...(python === 'py' ? ['-3'] : []), '--version'], { timeout: 8000, windowsHide: true }); pyVersion = (stdout || stderr).trim(); } catch {}
 const checks = [
-  ['Node.js', true, process.version],
-  ['Dependencies', await access(resolve(root, 'node_modules')).then(() => true).catch(() => false), 'Run npm install if missing'],
-  ['Local .env', await access(resolve(root, '.env')).then(() => true).catch(() => false), 'Use the first-run setup screen if missing'],
-  ['Gemini CLI bundle', await access(resolve(process.env.APPDATA ?? '', 'npm', 'node_modules', '@google', 'gemini-cli', 'bundle', 'gemini.js')).then(() => true).catch(() => false), 'Optional: needed only for Gemini CLI provider'],
-  ['Codex CLI bundle', await access(resolve(process.env.APPDATA ?? '', 'npm', 'node_modules', '@openai', 'codex', 'bin', 'codex.js')).then(() => true).catch(() => false), 'Optional: needed only for Codex CLI provider'],
-  ['Claude CLI', await access(resolve(process.env.USERPROFILE ?? '', '.local', 'bin', 'claude.exe')).then(() => true).catch(() => false), 'Optional: needed only for Claude CLI provider']
+  ['Node.js', Number(process.versions.node.split('.')[0]) >= 20, process.version],
+  ['Dependencies', await installed(resolve(root, 'node_modules', '.bin', process.platform === 'win32' ? 'tsc.cmd' : 'tsc')), 'Run npm ci if missing'],
+  ['managing-jira skill', Boolean(skill), skill?.folder ?? 'Install skill or set MANAGING_JIRA_SKILL_PATH'],
+  ['Python 3.10+', /^Python 3\.(1[0-9]|[2-9][0-9])\./.test(pyVersion), pyVersion || 'Install Python or set MANAGING_JIRA_PYTHON']
 ];
 for (const [name, ok, detail] of checks) console.log(`${ok ? 'OK' : 'CHECK'}  ${name}${detail ? ` - ${detail}` : ''}`);
-console.log('\nOpen the app, complete first-run setup, then use Show diagnostics to confirm the selected provider.');
+console.log('\nJira MX is fixed. Select Connect Jira to sign in with Samsung SSO.');

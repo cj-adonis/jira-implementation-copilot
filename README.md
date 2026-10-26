@@ -1,140 +1,149 @@
-﻿# Jira Implementation Copilot
+﻿# Jira MX Workspace
 
-A local developer tool that turns a Jira ticket into a clear briefing and a ticket-derived implementation plan. It is designed for individual developer machines and is **read-only for Jira**: it never creates, edits, comments on, transitions, or deletes issues.
+A local task-management workspace for Jira MX: plan your day, track deadlines and blockers, read conversations, and update work from a single interface. The workspace has matching light and dark themes, responsive layouts, and an animated sign-in experience.
 
-![Jira Implementation Copilot dashboard](docs/images/dashboard.png)
+Jira access uses the installed **managing-jira** skill and your Samsung SSO browser session. The app does not require a Jira PAT or an AI provider API key, and does not call Jira REST directly.
 
-## What it helps with
+## What you can do
 
-- Browse tickets assigned to the Jira account behind your personal access token.
-- Filter by status, project, label, priority, and recently updated date; save useful views in your browser.
-- Turn a ticket into an easy-to-read briefing and code plan shown as dark, animated card decks.
-- Export an analysis as Markdown, save feedback locally, and use a checklist to work through the plan.
-- Create a confirmed local Git implementation branch. This affects only the repository folder you choose; it never changes Jira or writes code automatically.
+- Open an issue by key or browse issues assigned to you.
+- Use **Today** to pin up to five priorities and see overdue work, today's deadlines, and work due in the next seven days. Completed issues are excluded from deadline alerts.
+- See priority, due dates, and blocker reasons in each issue row, and sort by recent updates, due date, priority, or summary.
+- Open an issue in a side panel while keeping your list filters, selection, and paging. On phones the preview opens as a dialog; **Open full issue** shows the complete issue page.
+- Use **Quick actions** to add a comment, change priority, or set/clear a due date. Review the exact change and confirm before it is sent to Jira MX. Priority choices and editable dates come from that issue's Jira configuration.
+- Switch between **List** and **Board** in My issues. Board columns use the actual Jira status names, and selection is shared between layouts. Use **Update status** to move work through its workflow.
+- Filter assigned issues by status, project, label, priority, or update date, and save filter views on this device.
+- Open an issue to read its full comment history, with no date limit or ten-comment cutoff. Search the conversation by author or text, and sort by date.
+- Choose **System**, **Light**, or **Dark** from **Appearance**. Your choice is remembered on this device, and System follows your operating system preference.
+- Follow connection progress through session checks and Samsung sign-in. The loading screen replaces inactive controls, survives navigation and reloads, and offers sign-in help when needed. Animations respect reduced-motion preferences.
+- Read issue descriptions, comments, links, attachments, dates, status changes, watchers, work logs, and available transitions.
+- Find Jira boards and active sprints.
+- Update an issue status from its row or detail view, or select multiple issues and choose **Update selected**. Choose a shared status or a transition per issue, then review and confirm. Selection spans pages and resets when filters change.
 
-## Before you start
+## Preview
 
-Each developer needs the following on their own computer:
+Screenshots show local test fixtures, not live Jira data.
 
-1. Node.js 20 or later and npm.
-2. Access to the required Jira projects plus a Jira Personal Access Token (PAT).
-3. One AI option:
-   - signed-in Gemini CLI;
-   - signed-in Codex CLI;
-   - signed-in Claude CLI; or
-   - an OpenAI or Gemini API key, if company policy permits it.
+![Jira MX workspace in dark mode, showing daily priorities and deadline summaries](docs/images/dashboard.png)
 
-### Request Jira API access
+<details>
+<summary>Light mode, workflow board, and sign-in progress</summary>
 
-Before configuring the app, apply for the required Jira access through the Samsung SDS R&D 365 portal:
+![Jira MX workspace in light mode](docs/images/workspace-light.png)
 
-[Apply for Jira API access on R&D 365](https://rnd365.samsungsds.com/)
+![Assigned issues grouped by their Jira workflow statuses](docs/images/task-board-dark.png)
 
-Request access to the Jira projects you need and permission to create/use a Personal Access Token. The token owner needs **Browse Projects** access, any applicable issue-security access, and permission to view comments when comments will be included as AI context. No Jira write permission is required by this application.
+![Animated Samsung SSO connection screen with step-by-step progress](docs/images/connecting-dark.png)
 
-## Install and run
+</details>
+
+## Requirements
+
+- Node.js 20 or newer and npm.
+- Python 3.10 or newer. Windows uses `py -3` by default; other systems use `python3`.
+- Chrome or Edge available to managing-jira for the managed SSO browser session.
+- The managing-jira skill at `~/.agents/skills/managing-jira` or `~/.codex/skills/managing-jira`. Set `MANAGING_JIRA_SKILL_PATH` if it is elsewhere.
+- Access to Jira MX with your Samsung SSO account.
+
+## Run
 
 ```powershell
-git clone https://github.com/cj-adonis/jira-implementation-copilot.git
-cd jira-implementation-copilot
-npm install
+npm ci
 npm run doctor
 npm run dev
 ```
 
-Open the local URL shown by Vite, normally [http://localhost:5173](http://localhost:5173).
+Open the Vite URL shown in the terminal, normally <http://localhost:5173>. On Windows, `start-jira-copilot.cmd` also starts the app.
 
-On Windows, you can instead double-click `start-jira-copilot.cmd` or the Desktop shortcut created by the launcher. The shortcut starts the local server and opens the browser.
+### Optional configuration
 
-## First-run setup
+Defaults work without a `.env` file. If you need overrides, copy `.env.example` to `.env` in the repository root.
 
-1. Open **Configure** in the top-right corner.
-2. Enter your Jira base URL, such as `https://jira.company.example`.
-3. Paste your Jira PAT. It is saved only to your local `.env` file and is never displayed again.
-4. Select an AI provider.
-   - For Gemini, Codex, or Claude CLI, sign in to that CLI in a terminal before starting this app.
-   - For API-key providers, enter the key and select a model.
-5. Click **Save setup**.
-6. Use **Show diagnostics** to verify Node, Jira configuration, and the selected provider. The diagnostics panel is collapsed by default to keep the page focused.
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3001` | Local API port. If changed, update the proxy target in `apps/web/vite.config.ts` too. |
+| `MANAGING_JIRA_SKILL_PATH` | Auto-discovered in `~/.agents/skills` or `~/.codex/skills` | Absolute path to the installed managing-jira skill. |
+| `MANAGING_JIRA_PYTHON` | `py` on Windows, `python3` elsewhere | Python executable path or command, without additional arguments. |
 
-Do not commit `.env`, PATs, or API keys. `.env` is already ignored by Git.
+The managing-jira skill is installed separately. The app reuses its configured Jira MX site and browser profile.
 
-## How to use the app
+## First use
 
-### 1. Find a ticket
+1. Select **Connect Jira**. The managed Chrome window opens directly at `https://jira-mx.sec.samsung.net/login.jsp`.
+2. Complete Samsung SSO in that window if prompted. The app updates when Jira MX is ready.
+3. Follow the animated connection steps. You can navigate or reload while connecting; the app follows the existing sign-in attempt.
+4. In **My issues**, pin your priorities in **Today**, choose **List** or **Board**, and sort or filter your assigned work. Text searches update immediately; choose **Apply filters** after changing other filters, or **Clear filters** to reset them.
+5. Select an issue to open its preview beside the list. Choose **Open full issue** for the complete page, or enter an issue key in the header to open it directly.
+6. Use **Update status**, **Update selected**, or **Quick actions** to make a change. Review the target issue and exact change before confirming. Use **Boards** to find team boards and active sprints.
 
-- Enter a Jira key, such as `CBCC-1737`, then select **View ticket**; or
-- Select **Load tickets** under **My assigned tickets**.
+If Chrome stays on **New Tab**, open `https://jira-mx.sec.samsung.net/login.jsp` in that same managed Chrome window. If you have already signed in but the app still says Connecting, use **Check connection** after the attempt ends.
 
-Use the status, project key, label, priority, and update-date filters to narrow the list. Choose **Save view** to store a useful filter combination in this browser. Choose **Hide tickets** whenever you need more space.
+The skill keeps the managed browser running so the session can be reused. Jira MX is fixed as the only site.
 
-### 2. Review the ticket before using AI
+Session checks are reused for up to 15 seconds, including immediately after login, to
+avoid repeated browser probes while loading work. Refresh and Check connection always
+request a fresh check. Failed Jira requests clear the cached session result.
 
-The ticket details page shows the summary, status, priority, description, linked issues, and an **Open in Jira** link. Select the context you want to include:
+## Privacy and limits
 
-- Description
-- Recent comments
-- Linked issues
+- The local API listens on `127.0.0.1`.
+- Jira reads and changes go through managing-jira and respect your Jira permissions. Status changes, comments, priority changes, and due date changes require review and confirmation in the app.
+- Batch updates report each issue separately; successful changes are not rolled back if another issue fails. Connection failures stop remaining updates. An uncertain result must be checked in Jira before retrying.
+- Status choices come from each issue workflow. Transitions requiring extra fields must be completed in Jira.
+- Pins, saved filters, sort order, layout, and comment seen state stay in this browser. Pins are personal and do not change Jira.
+- Blocker badges reflect blocked statuses, blocked/impediment labels, or inward blocking issue links. Completed blockers are excluded when their status is available; a missing linked status is explicitly shown as unavailable.
+- Comments load when you open an issue. Assigned issue searches follow Jira pagination.
+- Some insight sections may be unavailable if a Jira project or plugin does not grant access.
 
-Use **Preview prompt** if you want to inspect the generated AI context first. If a ticket appears to contain a password, token, secret, or API-key assignment, the app asks for confirmation before sending selected context to the configured AI provider.
+## Development
 
-### 3. Generate and read the analysis
-
-Select **Generate briefing and plan**. The result is split into two dark card decks:
-
-- **Issue Briefing** explains the goal, plain-language developer focus, requirements, questions, and acceptance criteria.
-- **Ticket-to-Code Plan** lists suggested implementation steps, generic code areas to inspect, tests, dependencies, assumptions, and risks.
-
-Use **Previous** and **Next** to review one topic at a time. Dots and the progress bar show where you are in each deck. Copy an individual card, copy all results as Markdown, or download a `.md` file.
-
-The review banner calls out unresolved questions and assumptions. Treat those as items to confirm, not as established ticket facts.
-
-### 4. Start implementation safely
-
-In **Start implementation**, enter the path to an existing local Git repository and confirm the action. The app verifies the folder is a Git repository, creates a branch named like `feature/cbcc-1737-implementation`, and switches to it.
-
-The plan checklist is stored only in your browser. This feature does not scan your repository, generate code, push branches, or modify Jira.
-
-## Screenshots
-
-### Dashboard and ticket workspace
-
-![Dashboard showing configuration, diagnostics, issue lookup, and assigned-ticket controls](docs/images/dashboard.png)
-
-## Useful commands
+Use Node.js 22 or newer for the browser fixture scripts, which use Node's built-in WebSocket client. The app itself supports Node.js 20 or newer.
 
 ```powershell
-npm run dev      # Start API and web development servers
-npm run doctor   # Check Node, dependencies, local config, and terminal CLI availability
-npm run build    # Create a production build
-npm test         # Run unit tests
-```
-
-## Troubleshooting
-
-| Problem | What to do |
-| --- | --- |
-| Jira authentication or permission error | Confirm your Jira base URL, PAT, project access, and request access through [R&D 365](https://rnd365.samsungsds.com/). |
-| Gemini, Codex, or Claude CLI cannot run | Run the provider CLI directly in a terminal and sign in. Restart this app with `npm run dev`, then use **Show diagnostics**. |
-| AI provider returned an invalid structured analysis | Generate again with fewer selected context sections, beginning with comments unchecked. The app requires a strict JSON response and safely handles common code-fence wrappers. |
-| Port already in use | Close older Jira Copilot terminal windows, then run `npm run dev` again. |
-| Branch already exists | Switch to the existing `feature/<issue-key>-implementation` branch manually, or choose a different repository. |
-
-## Security and privacy
-
-- Jira PATs and AI API keys stay on the local server in `.env`; they are not sent to the browser, saved in browser storage, shown in output, or committed to Git.
-- Terminal AI providers use the signed-in session available on the developer’s computer.
-- Selected Jira ticket context is sent to the chosen AI provider only after the developer chooses **Generate briefing and plan**.
-- Jira calls are limited to `GET /rest/api/2/issue/{issueKey}` and `GET /rest/api/2/search` for assigned-ticket retrieval.
-- The project performs no Jira writes.
-
-## Repository development
-
-```powershell
-npm install
-npm run doctor
 npm test
 npm run build
+node scripts/test-connection-browser.mjs
+node scripts/test-status-browser.mjs
+py -3 scripts/test-jira-login.py
+py -3 scripts/test-jira-workspace.py
 ```
 
-Contributions should preserve the local-first secret handling and the read-only Jira boundary.
+Connection tests cover closed and existing sessions, duplicate login requests, concurrent reads,
+incomplete SSO, timeout recovery, expired sessions, invalid CLI output, missing Python/skill,
+HTTP errors, and refreshing Jira views after reconnecting. The browser scenarios also cover animated connection progress, reduced motion, theme and pin persistence, complete issue comment threads, sorting, preview state, quick action review and updates, workflow board layout, filter reset, restoring older saved navigation, and mobile/tablet/desktop layouts. The browser scenario test uses
+the built UI, local simulated Jira responses, and an isolated temporary headless Chrome/Edge
+profile. Set `BROWSER_PATH` if the browser is installed elsewhere.
+
+To regenerate the documented screenshots on Windows, run the built UI fixture test with an output directory:
+
+```powershell
+$env:UI_SCREENSHOT_DIR = Join-Path $env:TEMP 'jira-workspace-previews'
+New-Item -ItemType Directory -Force -Path $env:UI_SCREENSHOT_DIR | Out-Null
+node scripts/test-connection-browser.mjs
+```
+
+The fixture test also captures task previews, quick-action dialogs, team boards, and phone-sized connection screens. Review generated images before adding them to the repository.
+
+Status tests cover single and batch updates, workflow-specific transitions, validation, partial failures, expired sessions, and uncertain write outcomes. The status browser scenarios also check selection across pages, confirmation, refreshed statuses, and mobile layout using local fixtures.
+
+These tests do not perform Samsung SSO against live Jira. Use **Connect Jira** for the live
+check. Login progress is held by the local API; restarting that process clears the attempt.
+The managed browser remains open, and **Check connection** can detect a completed sign-in.
+
+The app uses `scripts/jira-login.py` for login only. It runs the installed managing-jira
+CLI with a process-local navigation fix: Chrome receives the configured login URL at
+startup, and fresh Jira tabs open that login URL rather than the anonymous homepage.
+The installed skill files and browser profile are reused.
+
+Task reads use `scripts/jira-workspace.py`, a process-local adapter that preserves task fields and workflow categories in the installed CLI's output. The CLI still performs all authentication, site checks, and Jira requests; the installed skill is unchanged.
+
+On Windows, run the login navigation regression tests with:
+
+```powershell
+py -3 scripts/test-jira-login.py
+$env:JIRA_LOGIN_BROWSER_TEST = '1'
+py -3 scripts/test-jira-login.py -v
+```
+
+The optional browser test uses an isolated temporary Chrome profile and a local HTTP
+fixture; it does not sign in to Samsung SSO.
