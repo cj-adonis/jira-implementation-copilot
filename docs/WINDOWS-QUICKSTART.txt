@@ -1,0 +1,48 @@
+JIRA MX WORKSPACE - WINDOWS
+
+1. Extract the entire ZIP to a folder you can keep, such as Documents.
+2. Double-click Jira MX Workspace.exe inside that folder.
+3. Your default browser opens http://127.0.0.1:43821.
+4. Select Connect Jira and complete Samsung SSO in the managed browser.
+
+Node.js and the built app are included. You do not need npm, a terminal,
+or the project source code. Keep the EXE beside its apps, runtime,
+node_modules, and scripts folders. You can create a shortcut to the EXE.
+
+BEFORE FIRST USE
+Install Python 3.10 or newer (with the Windows py launcher), Chrome or Edge,
+and your organization's managing-jira skill with its own required dependencies.
+The skill must be installed separately in either:
+  %USERPROFILE%\.agents\skills\managing-jira
+  %USERPROFILE%\.codex\skills\managing-jira
+Ask your team for the approved skill installation instructions if missing.
+Connect to your company network/VPN as required for Jira MX.
+
+If Python or the skill is installed elsewhere, copy .env.example to .env
+in this folder and edit MANAGING_JIRA_PYTHON / MANAGING_JIRA_SKILL_PATH.
+Restart the workspace after changing configuration. The Windows launcher
+always uses port 43821; PORT in .env applies only to standalone API usage.
+
+OPEN / QUIT
+Double-click the EXE again, or use the tray icon, to reopen the workspace.
+Closing the browser tab keeps the local app running. To stop it, right-click
+the tray icon (possibly under the hidden icons arrow) and select Quit.
+The managing-jira browser session is separate and may remain open.
+
+TROUBLESHOOTING
+Startup errors are shown in a dialog. Logs are saved at:
+  %LOCALAPPDATA%\Jira MX Workspace\launcher.log
+If port 43821 is busy, quit the other app using that port and retry.
+Missing Python or skill errors appear in the connection screen.
+This build is unsigned; use your organization's approved distribution process.
+No Samsung login credentials or browser profiles are included in this package.
+
+UPDATES
+Quit the old app before extracting an updated ZIP to a new folder.
+Copy your .env overrides if needed, then update your shortcut.
+Using the same browser and URL preserves this device's saved workspace choices.
+Deleting the app folder removes the portable app. Browser data, managing-jira,
+Python, and SSO profiles are managed separately.
+
+Runtime licensing: runtime\LICENSE.txt contains the Node.js notices.
+Third-party dependency notices are included in node_modules package folders.

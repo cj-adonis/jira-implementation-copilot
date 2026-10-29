@@ -57,10 +57,10 @@ function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Skip to content</a>
     <header className="topbar">
-      <button className="brand" onClick={() => setView('work')} aria-label="Jira MX home"><span className="brand-mark">J</span><span><strong>Jira MX</strong><small>Workspace</small></span></button>
-      <nav className="main-nav" aria-label="Main navigation">{nav.map(item => <button key={item.id} className={(view === 'issue' ? 'work' : view) === item.id ? 'active' : ''} aria-current={(view === 'issue' ? 'work' : view) === item.id ? 'page' : undefined} onClick={() => { setPreview(false); setView(item.id); }}><Icon name={item.id === 'work' ? 'work' : 'board'} />{item.label}</button>)}</nav>
-      <form className="quick-lookup" onSubmit={lookup}><Icon name="search" /><label className="visually-hidden" htmlFor="quick-key">Open Jira issue by key</label><input id="quick-key" value={keyInput} aria-invalid={Boolean(keyError)} aria-describedby={keyError ? 'key-error' : undefined} onChange={event => { setKeyInput(event.target.value.toUpperCase()); setKeyError(''); }} placeholder="Issue key, e.g. CBCC-1737" /><button className="button primary" type="submit">Open</button></form>
-      <ThemeSelect />
+      <button className="brand" disabled={connection.preparing} onClick={() => setView('work')} aria-label="Jira MX home"><span className="brand-mark">J</span><span><strong>Jira MX</strong><small>Workspace</small></span></button>
+      <nav className="main-nav" aria-label="Main navigation">{nav.map(item => <button key={item.id} disabled={connection.preparing} className={(view === 'issue' ? 'work' : view) === item.id ? 'active' : ''} aria-current={(view === 'issue' ? 'work' : view) === item.id ? 'page' : undefined} onClick={() => { setPreview(false); setView(item.id); }}><Icon name={item.id === 'work' ? 'work' : 'board'} />{item.label}</button>)}</nav>
+      <form className="quick-lookup" onSubmit={lookup}><Icon name="search" /><label className="visually-hidden" htmlFor="quick-key">Open Jira issue by key</label><input id="quick-key" disabled={connection.preparing} value={keyInput} aria-invalid={Boolean(keyError)} aria-describedby={keyError ? 'key-error' : undefined} onChange={event => { setKeyInput(event.target.value.toUpperCase()); setKeyError(''); }} placeholder="Issue key, e.g. CBCC-1737" /><button className="button primary" type="submit" disabled={connection.preparing}>Open</button></form>
+      <ThemeSelect disabled={connection.preparing} />
     </header>
     {keyError && <div id="key-error" className="top-error" role="alert">{keyError}</div>}
     <main id="main-content" className="content" tabIndex={-1}>

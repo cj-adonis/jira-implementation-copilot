@@ -2,7 +2,7 @@ import Fastify from 'fastify'; import { z } from 'zod'; import { batchStatusUpda
 export function createApp(jira = new JiraClient()) {
 const app = Fastify({ logger: false });
 app.setErrorHandler((error, _request, reply) => { const isValidationError = error instanceof Error && error.name === 'ZodError'; const status = error instanceof AppError ? error.statusCode : isValidationError || (error instanceof Error && 'statusCode' in error && error.statusCode === 400) ? 400 : 500; reply.status(status).send({ error: error instanceof AppError ? error.message : status === 400 ? 'Invalid settings or Jira issue key.' : 'Unexpected local server error.' }); });
-app.get('/api/health', async () => ({ jira: true, jiraSite: config.jiraSite }));
+app.get('/api/health', async () => ({ app: 'jira-mx-workspace', jira: true, jiraSite: config.jiraSite, desktopInstance: process.env.JIRA_DESKTOP_INSTANCE }));
 app.get('/api/jira/status', async request => {
   const { fresh } = z.object({ fresh: z.enum(['true', 'false']).optional() }).parse(request.query);
   return jira.status(fresh === 'true');

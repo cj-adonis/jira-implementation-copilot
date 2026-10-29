@@ -37,7 +37,31 @@ Screenshots show local test fixtures, not live Jira data.
 
 </details>
 
-## Requirements
+## Windows app (recommended for end users)
+
+Download the team's `Jira-MX-Workspace-win-*.zip`, extract the entire ZIP, and double-click **Jira MX Workspace.exe**. Node.js and the built app are included; users do not need npm or the source repository. The app opens at <http://127.0.0.1:43821> in your default browser. Create a shortcut to the EXE for daily use.
+
+Python 3.10+, Chrome/Edge, and the organization's approved **managing-jira** skill and its dependencies must still be installed on each user's computer. The package does not include that separately managed skill, credentials, `.env` settings, or browser profiles. See [Windows first-use instructions](docs/WINDOWS-QUICKSTART.txt).
+
+The app stays in the Windows notification area when you close the browser tab. Double-click its icon to reopen, or right-click and choose **Quit** to stop the local server. Startup logs are under `%LOCALAPPDATA%\Jira MX Workspace\launcher.log`. This portable release uses Windows .NET Framework 4.x for its launcher and the architecture of the Node.js runtime used to build it.
+
+### Build the Windows distribution
+
+On Windows with Node.js 20+ and npm installed:
+
+```powershell
+npm ci
+npm test
+npm run package:windows
+```
+
+The command builds the UI/API, installs only API production dependencies from the lockfile in a fresh staging folder, includes the current Node executable and its license notices, compiles the native Windows launcher, runs a local packaged-runtime smoke test, and creates a ZIP and SHA-256 checksum in `release/`. Internet access is needed for npm dependencies and the matching Node license. The launcher compiler included with Windows .NET Framework must be available. Build with an x64 Node installation for an x64 release.
+
+Share the complete ZIP and checksum. The EXE needs its adjacent runtime, app, and dependency folders. Builds are unsigned; use your organization's approved distribution and signing process. `npm run test:package` repeats the runtime smoke test against the latest staged build without accessing Jira. Build files and archives are ignored by Git.
+
+The native launcher uses a single instance, checks that its own server is ready before opening the browser, and stops the server when it exits. Port `43821` is fixed for the Windows app so browser preferences remain associated with the same address. A port conflict produces a startup error. `.env` can override Python/skill paths; the launcher's port takes precedence over `PORT`.
+
+## Development requirements
 
 - Node.js 20 or newer and npm.
 - Python 3.10 or newer. Windows uses `py -3` by default; other systems use `python3`.
@@ -45,7 +69,7 @@ Screenshots show local test fixtures, not live Jira data.
 - The managing-jira skill at `~/.agents/skills/managing-jira` or `~/.codex/skills/managing-jira`. Set `MANAGING_JIRA_SKILL_PATH` if it is elsewhere.
 - Access to Jira MX with your Samsung SSO account.
 
-## Run
+## Run from source
 
 ```powershell
 npm ci
@@ -83,6 +107,12 @@ The skill keeps the managed browser running so the session can be reused. Jira M
 Session checks are reused for up to 15 seconds, including immediately after login, to
 avoid repeated browser probes while loading work. Refresh and Check connection always
 request a fresh check. Failed Jira requests clear the cached session result.
+
+Refreshing the page restores the last verified connection state from this tab for
+up to five minutes while the API checks the existing session in the background.
+This stores UI status only; Jira requests still validate the real SSO session.
+Session expiry and validation errors clear the saved state. The sign-in animation
+appears only during a login attempt, rather than on every page refresh.
 
 ## Privacy and limits
 

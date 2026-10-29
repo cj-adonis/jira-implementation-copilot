@@ -21,6 +21,7 @@ assert(browser, 'Install Chrome/Edge or set BROWSER_PATH.');
 assert(existsSync(join(dist, 'index.html')), 'Run npm run build first.');
 const requests = [];
 let connected = false, loginCount = 0, htmlStatus = false, freshChecks = 0;
+let statusGate = null;
 let progress = { phase: 'idle', startedAt: null, message: '' };
 const quickWrites = [];
 let uncertainQuickAction = false;
@@ -40,6 +41,7 @@ const server = createServer(async (req, res) => {
   try {
     if (path === '/api/jira/connection-progress') return json(progress);
     if (path === '/api/jira/status') {
+      if (statusGate) await statusGate;
       if (new URL(req.url, 'http://localhost').searchParams.get('fresh') === 'true') freshChecks++;
       if (htmlStatus) { res.writeHead(502, { 'Content-Type': 'text/html' }); return res.end('<html>Proxy unavailable</html>'); }
       return json({ sites: [{ service: 'jira', site: 'mx', logged_in: connected }] });
@@ -165,17 +167,19 @@ try {
   await rpc('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   pass('connection loading fits phones and desktops in both themes and respects reduced motion');
 
-  await click('Boards');
-  await until(() => evaluate('document.querySelector(".main-nav [aria-current=page]")?.textContent === "Boards"'), 'navigation during login');
-  assert(await bodyContains('Connecting'));
+  assert(await evaluate('[...document.querySelectorAll(".topbar button, .topbar input, .topbar select")].every(control => control.disabled)'));
+  await evaluate('document.querySelectorAll(".main-nav button")[1].click()');
+  assert.equal(await evaluate('document.querySelector(".main-nav [aria-current=page]")?.textContent'), 'My issues');
   await rpc('Page.reload');
   await until(() => bodyContains('Waiting for fixture SSO'), 'resume progress after reload');
   assert.equal(loginCount, 1);
-  pass('navigation and reload follow the existing login');
+  pass('navigation is disabled and reload follows the existing login');
 
   connected = true;
   progress = { ...progress, phase: 'connected', message: 'Connected' };
   await until(() => evaluate('[...document.querySelectorAll("h2")].some(h => h.textContent === "Jira is ready")'), 'SSO completion');
+  assert(await evaluate('[...document.querySelectorAll(".topbar button, .topbar input, .topbar select")].every(control => !control.disabled)'));
+  await click('Boards');
   await click('Find boards');
   await until(() => bodyContains('Fixture board'), 'boards load after connection');
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Fixture board")).click()');
@@ -189,6 +193,21 @@ try {
   await click('Open full issue');
   assert(await evaluate('[...document.querySelectorAll("h2")].some(h => h.textContent === "Jira is ready")'));
   pass('issue detail page retains connection controls');
+
+  const loginsBeforeReload = loginCount;
+  const probesBeforeReload = requests.filter(path => path === '/api/jira/status').length;
+  let releaseStatus;
+  statusGate = new Promise(resolve => { releaseStatus = resolve; });
+  try {
+    await rpc('Page.reload');
+    await until(() => requests.filter(path => path === '/api/jira/status').length > probesBeforeReload, 'background session validation after reload');
+    assert(await bodyContains('Jira is ready'), 'A recent connection must survive reload while validation is pending.');
+    assert(await evaluate('document.querySelector(".connection-loading") === null'), 'Reload must not show the SSO animation.');
+    assert(await evaluate('document.querySelector(".issue-header")?.getClientRects().length > 0'), 'The workspace must remain visible during background validation.');
+    assert.equal(loginCount, loginsBeforeReload, 'Reload must not launch login.');
+  } finally { statusGate = null; releaseStatus(); }
+  await until(() => evaluate('[...document.querySelectorAll(".connection-card button")].some(button => button.textContent.trim() === "Refresh" && !button.disabled)'), 'background validation completes');
+  pass('reload preserves the connected workspace while checking the session in the background');
 
   connected = false;
   await click('Refresh');

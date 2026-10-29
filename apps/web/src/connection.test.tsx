@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type ConnectionProgress } from '@jira-copilot/shared';
 import { api, ApiError } from './ui';
-import { createQueryClient, refreshJiraData, statusKey, progressKey } from './connection';
+import { createQueryClient, refreshJiraData, statusKey, progressKey, useJiraStatus } from './connection';
 import { JiraConnection } from './JiraExtras';
 
 const status = (logged_in: boolean) => ({ sites: [{ service: 'jira', site: 'mx', logged_in }] });
@@ -24,6 +24,53 @@ describe('API failure messages', () => {
   });
 });
 describe('connection cache recovery', () => {
+  function mockStorage() {
+    const values = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key) });
+    return values;
+  }
+  it('restores the connected UI after reload and still requires background revalidation', async () => {
+    mockStorage();
+    const first = createQueryClient();
+    await first.fetchQuery({ queryKey: statusKey, queryFn: async () => status(true) });
+    first.clear();
+    const reloaded = createQueryClient();
+    expect(reloaded.getQueryData(statusKey)).toEqual(status(true));
+    expect(reloaded.getQueryState(statusKey)?.dataUpdatedAt).toBe(0);
+    function Workspace() {
+      const connection = useJiraStatus();
+      return <span>{connection.connected && !connection.preparing ? 'Workspace ready' : 'Preparing'}</span>;
+    }
+    const html = renderToStaticMarkup(<QueryClientProvider client={reloaded}><Workspace /><JiraConnection /></QueryClientProvider>);
+    expect(html).toContain('Workspace ready');
+    expect(html).toContain('Jira is ready');
+    expect(html).not.toContain('role="progressbar"');
+    await reloaded.fetchQuery({ queryKey: statusKey, queryFn: async () => status(false) });
+    expect(createQueryClient().getQueryData(statusKey)).toBeUndefined();
+    reloaded.clear();
+  });
+  it('does not restore old, malformed, or unavailable storage', async () => {
+    const values = mockStorage();
+    const client = createQueryClient();
+    await client.fetchQuery({ queryKey: statusKey, queryFn: async () => status(true) });
+    const saved = [...values.values()][0];
+    const key = [...values.keys()][0];
+    values.set(key, JSON.stringify({ ...JSON.parse(saved), checkedAt: Date.now() - 300_001 }));
+    expect(createQueryClient().getQueryData(statusKey)).toBeUndefined();
+    values.set(key, 'invalid JSON');
+    expect(createQueryClient().getQueryData(statusKey)).toBeUndefined();
+    vi.stubGlobal('sessionStorage', { getItem: () => { throw new Error('Disabled'); }, removeItem: () => { throw new Error('Disabled'); } });
+    expect(createQueryClient().getQueryData(statusKey)).toBeUndefined();
+    client.clear();
+  });
+  it.each([401, 502])('clears the saved connection when validation fails with %i', async code => {
+    mockStorage();
+    const client = createQueryClient();
+    await client.fetchQuery({ queryKey: statusKey, queryFn: async () => status(true) });
+    await expect(client.fetchQuery({ queryKey: code === 401 ? ['assigned'] : statusKey, queryFn: async () => { throw new ApiError(code, 'Unavailable'); } })).rejects.toThrow('Unavailable');
+    expect(createQueryClient().getQueryData(statusKey)).toBeUndefined();
+    client.clear();
+  });
   it('marks every Jira view stale after connecting, including previously failed views', async () => {
     const client = createQueryClient();
     for (const key of ['assigned', 'issue', 'insights', 'boards', 'sprints', 'comment-activity', 'transitions', 'unrelated']) client.setQueryData([key], {});
@@ -61,6 +108,14 @@ describe('connection card rendering', () => {
   it('offers Connect when the managed browser is closed', () => {
     expect(render('idle')).toContain('Connect Jira');
     expect(render('idle')).toContain('Not connected');
+  });
+  it('does not present an initial session check as a new SSO login', () => {
+    const client = createQueryClient();
+    const html = renderToStaticMarkup(<QueryClientProvider client={client}><JiraConnection /></QueryClientProvider>);
+    expect(html).toContain('Checking Jira session');
+    expect(html).not.toContain('Connecting');
+    expect(html).not.toContain('role="progressbar"');
+    client.clear();
   });
   it('shows an existing signed-in session', () => {
     expect(render('idle', true)).toContain('Jira is ready');

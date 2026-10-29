@@ -113,6 +113,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .layout-toggle .button.primary { border-color: var(--border); background: var(--surface); box-shadow: 0 2px 8px #2037580b; color: var(--accent); }
 .batch-toolbar { margin-top: 16px; padding: 10px 13px; border: 1px solid var(--divider); border-radius: 13px; background: linear-gradient(110deg,var(--surface-soft),color-mix(in srgb,var(--accent-soft) 30%,var(--surface))); font-size: .8rem; }
 .ticket-table { margin-top: 10px; }
+.ticket-table.is-updating, .task-board.is-updating { opacity: .55; pointer-events: none; transition: opacity .15s ease; }
 .selectable-ticket { padding: 5px 0; }
 .selectable-ticket:has(> input:checked) { border-radius: 10px; background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .selectable-ticket > input { margin-left: 2px; }
@@ -130,7 +131,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .blocked-tag { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--warning-border); border-radius: 6px; font-size: .7rem; }
 .status-tag { border: 1px solid color-mix(in srgb,var(--accent) 12%,var(--border)); border-radius: 7px; padding: 5px 9px; font-size: .68rem; }
 .count-badge { min-width: 25px; min-height: 25px; border: 1px solid color-mix(in srgb,var(--accent) 12%,var(--border)); border-radius: 8px; font-size: .72rem; }
-.task-actions .button.small { min-height: 36px; padding: 6px 9px; font-size: .71rem; }
+.task-actions .button.small { min-height: 38px; padding: 7px 11px; font-size: .76rem; }
 .task-board { gap: 14px; grid-auto-columns: minmax(270px,1fr); padding-top: 8px; }
 .task-column { padding: 13px; border-radius: 18px; border-color: var(--border); background: linear-gradient(160deg,var(--surface-soft),color-mix(in srgb,var(--accent-soft) 18%,var(--surface-soft))); }
 .column-heading { padding: 3px 2px 10px; }
@@ -225,3 +226,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
   .status-dialog h2 { font-size: 1.2rem; }
   .quick-review { padding: 15px; }
 }
+
+/* Keep issue metadata aligned across lists and boards. */
+.priority-tag, .blocked-tag, .status-tag, .filter-summary .filter-chip, .chips span { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 8px; border-radius: 7px; font-size: .72rem; line-height: 1.2; }
+
+.ticket-row .status-tag { width: 115px; max-width: 100%; min-width: 0; justify-content: center; text-align: center; }
+.loading-indicator { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 112px; color: var(--muted); font-size: .85rem; font-weight: 600; }
+.loading-indicator::before { content: ""; flex: none; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: loading-spin .8s linear infinite; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-indicator::before { animation: none; } }
