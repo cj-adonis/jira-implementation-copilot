@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api, readLocal, type Ticket } from './ui';
 import { useJiraStatus } from './connection';
 import { StatusEditor } from './StatusEditor';
@@ -50,8 +50,11 @@ export function WorkView({ onSelect }: { onSelect: (key: string) => void }) {
   const query = useQuery({
     queryKey: ['assigned', applied.status, applied.project, applied.priority, applied.label, applied.updatedDays],
     queryFn: () => api<{ issues: Ticket[] }>('/api/issues/assigned' + (params.size ? '?' + params.toString() : '')),
-    enabled: connected
+    enabled: connected,
+    // Keep the previous rows on screen while a new filter loads; they are dimmed below.
+    placeholderData: keepPreviousData
   });
+  const updating = query.isPlaceholderData ? ' is-updating' : '';
   const todayQuery = useQuery({ queryKey: ['assigned', '', '', '', '', ''], queryFn: () => api<{ issues: Ticket[] }>('/api/issues/assigned'), enabled: connected });
   const set = (name: keyof Filters, value: string) => setDraft(current => ({ ...current, [name]: value }));
   const dirty = serverFilters(draft) !== serverFilters(applied);
@@ -111,12 +114,12 @@ export function WorkView({ onSelect }: { onSelect: (key: string) => void }) {
       <div className="batch-toolbar"><label><input type="checkbox" checked={allOnPage} disabled={!visible.length} onChange={event => setSelected(previous => event.target.checked ? [...new Set([...previous, ...visible.map(ticket => ticket.key)])] : previous.filter(key => !visible.some(ticket => ticket.key === key)))} /> {layout === 'board' ? 'Select all shown' : 'Select this page'}</label>
         <span>{selection.length} selected</span><button className="button primary small" disabled={!selection.length} onClick={() => setEditing(selection)}>Update selected</button>
         {selection.length > 0 && <button className="button subtle small" onClick={() => setSelected([])}>Clear selection</button>}</div>
-      {layout === 'list' ? <div className="ticket-table">{visible.map(ticket => <div className="selectable-ticket" key={ticket.key}>
+      {layout === 'list' ? <div className={'ticket-table' + updating} aria-busy={query.isPlaceholderData}>{visible.map(ticket => <div className="selectable-ticket" key={ticket.key}>
         <input type="checkbox" aria-label={'Select ' + ticket.key} checked={selected.includes(ticket.key)} onChange={event => setSelected(previous => event.target.checked ? [...previous, ticket.key] : previous.filter(key => key !== ticket.key))} />
         <button className="ticket-row" onClick={() => onSelect(ticket.key)}>
           <span className="ticket-key">{ticket.key}</span><span className="ticket-content"><span className="ticket-summary">{ticket.summary}</span><TaskMeta task={ticket} today={today} /></span><span className="status-tag">{ticket.status ?? 'No status'}</span><span className="row-arrow">&rarr;</span>
         </button><div className="task-actions">{actions(ticket)}</div>
-      </div>)}</div> : <><p className="field-note">Grouped by your Jira workflow. Use Update status to move an issue to its next step.</p><div className="task-board" aria-label="Assigned issue board">{groupTasks(items).map(group => <section className="task-column" key={group.status} aria-label={group.status}><div className="column-heading"><h3>{group.status}</h3><span className="count-badge">{group.issues.length}</span></div>{group.issues.map(ticket => <article className="task-card" key={ticket.key}>
+      </div>)}</div> : <><p className="field-note">Grouped by your Jira workflow. Use Update status to move an issue to its next step.</p><div className={'task-board' + updating} aria-busy={query.isPlaceholderData} aria-label="Assigned issue board">{groupTasks(items).map(group => <section className="task-column" key={group.status} aria-label={group.status}><div className="column-heading"><h3>{group.status}</h3><span className="count-badge">{group.issues.length}</span></div>{group.issues.map(ticket => <article className="task-card" key={ticket.key}>
         <div className="card-heading"><input type="checkbox" aria-label={'Select ' + ticket.key} checked={selected.includes(ticket.key)} onChange={event => setSelected(previous => event.target.checked ? [...previous, ticket.key] : previous.filter(key => key !== ticket.key))} /><span className="ticket-key">{ticket.key}</span></div>
         <button className="board-open" onClick={() => onSelect(ticket.key)}>{ticket.summary}</button><TaskMeta task={ticket} today={today} /><div className="task-actions">{actions(ticket)}</div>
       </article>)}</section>)}</div></>}

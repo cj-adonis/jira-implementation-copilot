@@ -85,6 +85,40 @@ describe('Jira CLI process boundary', () => {
     vi.stubEnv('MANAGING_JIRA_PYTHON', 'py');
     processResult(null, '{}');
     await runJiraCli(['status']);
-    expect(mocks.exec.mock.calls[0][1][0]).toBe('-3');
+    const run = mocks.exec.mock.calls.find(([, args]) => args.includes('status'));
+    expect(run?.[0]).toBe('py');
+    expect(run?.[1][0]).toBe('-3');
+  });
+  it('runs the newest Python 3 interpreter directly once the py launcher lookup succeeds', async () => {
+    vi.resetModules();
+    vi.stubEnv('MANAGING_JIRA_PYTHON', 'py');
+    const { runJiraCli: runWithLauncher } = await import('./jira.js');
+    const listing = ' -V:3.13[-64]  *  C:\\Python\\3.13\\python.exe\r\n -V:3.14[-64]    C:\\Python\\3.14\\python.exe\r\n';
+    mocks.exec.mockImplementation((_exe, args, _options, callback) => {
+      queueMicrotask(() => callback(null, args[0] === '-0p' ? listing : '{}', ''));
+      return { stderr: new EventEmitter() };
+    });
+    await vi.waitFor(async () => {
+      await runWithLauncher(['status']);
+      expect(mocks.exec.mock.calls.at(-1)?.[0]).toBe('C:\\Python\\3.14\\python.exe');
+    });
+    const args = mocks.exec.mock.calls.at(-1)?.[1] ?? [];
+    expect(args[0]).not.toBe('-3');
+    expect(args.at(-1)).toBe('status');
+  });
+  it('keeps the py launcher when the lookup finds no usable interpreter', async () => {
+    vi.resetModules();
+    vi.stubEnv('MANAGING_JIRA_PYTHON', 'py');
+    const { runJiraCli: runWithLauncher } = await import('./jira.js');
+    mocks.access.mockImplementation(async (path: string) => { if (path.endsWith('python.exe')) throw new Error('missing'); });
+    mocks.exec.mockImplementation((_exe, args, _options, callback) => {
+      queueMicrotask(() => callback(null, args[0] === '-0p' ? ' -V:3.14[-64]  *  C:\\Python\\3.14\\python.exe\r\n' : '{"sites":[]}', ''));
+      return { stderr: new EventEmitter() };
+    });
+    await runWithLauncher(['status']);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await runWithLauncher(['status']);
+    expect(mocks.exec.mock.calls.at(-1)?.[0]).toBe('py');
+    expect(mocks.exec.mock.calls.at(-1)?.[1][0]).toBe('-3');
   });
 });

@@ -53,7 +53,24 @@ async function skill() {
   throw new AppError(503, 'managing-jira is not installed. Set MANAGING_JIRA_SKILL_PATH to its folder.');
 }
 const py = () => process.env.MANAGING_JIRA_PYTHON || (process.platform === 'win32' ? 'py' : 'python3');
-const pyArgs = (script: string, args: string[]) => [...(py() === 'py' ? ['-3'] : []), script, ...args];
+// The Windows py launcher adds about a second to every CLI start. Look up the interpreter it
+// would pick once in the background, then run that file directly. Until the lookup succeeds,
+// the launcher keeps working exactly as before.
+let directPython: string | null = null;
+let directPythonLookup: Promise<void> | null = null;
+function lookupDirectPython(): Promise<void> {
+  directPythonLookup ??= new Promise<void>(done => {
+    execFile('py', ['-0p'], { timeout: 10_000, windowsHide: true }, (error, stdout) => {
+      const newest = error ? undefined : [...String(stdout).matchAll(/-V:3\.(\d+)\S*\s+\*?\s*(.+?python\.exe)\s*$/gim)]
+        .sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+      if (!newest) return done();
+      access(newest[2]).then(() => { directPython = newest[2]; }, () => undefined).finally(done);
+    });
+  });
+  return directPythonLookup;
+}
+const pyCommand = () => (py() === 'py' && directPython) || py();
+const pyArgs = (script: string, args: string[]) => [...(py() === 'py' && !directPython ? ['-3'] : []), script, ...args];
 let pending: Promise<unknown> = Promise.resolve();
 function serial<T>(fn: () => Promise<T>): Promise<T> { const next = pending.then(fn, fn); pending = next.catch(() => undefined); return next; }
 export function cliError(stderr: string): AppError {
@@ -71,16 +88,20 @@ export function cliError(stderr: string): AppError {
 export type JiraRunner = (args: string[], onInfo?: (message: string) => void) => Promise<any>;
 export async function runJiraCli(args: string[], onInfo?: (message: string) => void): Promise<any> {
     const { script } = await skill();
+    if (py() === 'py') void lookupDirectPython();
     return new Promise((resolve, reject) => {
       const loginAdapter = fileURLToPath(new URL('../../../scripts/jira-login.py', import.meta.url));
       const searchAdapter = fileURLToPath(new URL('../../../scripts/jira-workspace.py', import.meta.url));
       const commandArgs = args[0] === 'login' ? pyArgs(loginAdapter, [script, ...args])
         : args[0] === 'jira' && ['search', 'get-issue'].includes(args[1]) ? pyArgs(searchAdapter, [script, ...args]) : pyArgs(script, args);
-      const child = execFile(py(), commandArgs, {
+      const child = execFile(pyCommand(), commandArgs, {
         cwd: process.cwd(), timeout: args[0] === 'status' ? 30_000 : 420_000, maxBuffer: 8 * 1024 * 1024, windowsHide: true
       }, (error, stdout, stderr) => {
         if (error) {
-          if ((error as NodeJS.ErrnoException).code === 'ENOENT') reject(new AppError(503, 'Python 3.10+ was not found. Set MANAGING_JIRA_PYTHON.'));
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            directPython = null; // A moved or removed interpreter falls back to the launcher.
+            reject(new AppError(503, 'Python 3.10+ was not found. Set MANAGING_JIRA_PYTHON.'));
+          }
           else if (error.killed) reject(new AppError(504, args[0] === 'status' ? 'Checking the Jira browser timed out. Check the managed browser and your VPN connection.' : args[0] === 'login' ? 'Jira SSO timed out. Check the managed Chrome window.' : 'The Jira request timed out. Check your VPN connection and try again.'));
           else reject(cliError(String(stderr)));
           return;

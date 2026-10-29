@@ -4,7 +4,7 @@ type Theme = 'system' | 'light' | 'dark';
 const themeKey = 'jira-copilot-theme';
 const isTheme = (value: string | null): value is Theme => value === 'system' || value === 'light' || value === 'dark';
 
-export function ThemeSelect() {
+export function ThemeSelect({ disabled = false }: { disabled?: boolean }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try { const stored = localStorage.getItem(themeKey); return isTheme(stored) ? stored : 'system'; }
     catch { return 'system'; }
@@ -27,7 +27,7 @@ export function ThemeSelect() {
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
-  return <label className="theme-select"><span>Appearance</span><select aria-label="Appearance" value={theme} onChange={event => {
+  return <label className="theme-select"><span>Appearance</span><select aria-label="Appearance" disabled={disabled} value={theme} onChange={event => {
     const value = event.target.value as Theme;
     setTheme(value);
     try { localStorage.setItem(themeKey, value); } catch { /* Keep the choice for this session. */ }

@@ -1,12 +1,21 @@
 {
   "name": "jira-implementation-copilot",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @jira-copilot/api\" \"npm run dev -w @jira-copilot/web\"",
     "build": "npm run build -w @jira-copilot/web && npm run build -w @jira-copilot/api",
     "test": "npm run test -ws --if-present",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1",
+    "test:package": "node scripts/test-windows-package.mjs"
   },
-  "devDependencies": { "concurrently": "^9.1.2", "typescript": "^5.7.3" }
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.7.3"
+  }
 }

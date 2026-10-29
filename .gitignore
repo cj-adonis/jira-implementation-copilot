@@ -6,3 +6,4 @@ coverage
 *.tsbuildinfo
 /.agent-cache/
 /scripts/__pycache__/
+/release/
